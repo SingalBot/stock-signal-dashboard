@@ -59,17 +59,38 @@ def get_stock_data(symbol, period="1d", interval="5m"):
     if df.empty:
         st.error("No data found. Please check the symbol.")
         return pd.DataFrame()
+    
     # Reset index to make 'Date' or 'Datetime' a column
     df = df.reset_index()
+    
+    # Handle multi-level columns
+    if isinstance(df.columns, pd.MultiIndex):
+        # For single ticker, take the first level of column names (ignore ticker level)
+        df.columns = [col[0] if col[1] == '' else col[0] for col in df.columns]
+    
     # Ensure the datetime column is named consistently
     if 'Date' in df.columns:
         df.rename(columns={'Date': 'Datetime'}, inplace=True)
     elif 'Datetime' not in df.columns:
         st.error("Datetime column not found in data.")
         return pd.DataFrame()
+    
+    # Ensure Close column exists and is numeric
+    if 'Close' not in df.columns:
+        st.error("Close column not found in data.")
+        return pd.DataFrame()
+    
+    # Convert Close to numeric, if possible
+    try:
+        df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
+    except Exception as e:
+        st.error(f"Error converting Close column to numeric: {str(e)}")
+        return pd.DataFrame()
+    
     # Log column info for debugging
     st.write(f"Columns: {list(df.columns)}")
     st.write(f"Close column dtype: {df['Close'].dtype}")
+    
     return df
 
 st.set_page_config(page_title="Stock Signal Dashboard", layout="wide")

@@ -36,8 +36,14 @@ def get_stock_data(symbol, period="1d", interval="5m"):
     if df.empty:
         st.error("No data found. Please check the symbol.")
         return pd.DataFrame()
+    # Reset index to make 'Date' or 'Datetime' a column
     df = df.reset_index()
-    df.columns = [col if isinstance(col, str) else col.strftime('%Y-%m-%d %H:%M:%S') for col in df.columns]
+    # Ensure the datetime column is named consistently
+    if 'Date' in df.columns:
+        df.rename(columns={'Date': 'Datetime'}, inplace=True)
+    elif 'Datetime' not in df.columns:
+        st.error("Datetime column not found in data.")
+        return pd.DataFrame()
     return df
 
 st.set_page_config(page_title="Stock Signal Dashboard", layout="wide")

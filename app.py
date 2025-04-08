@@ -20,15 +20,38 @@ def send_telegram_message(message):
 
 def compute_signals(df):
     rsi_period = 14
-    macd = MACD(df["Close"])
-    rsi = RSIIndicator(df["Close"], window=rsi_period)
+    
+    # Validate Close column
+    if "Close" not in df.columns:
+        st.error("Close column not found in data.")
+        return df
+    if not pd.api.types.is_numeric_dtype(df["Close"]):
+        st.error("Close column contains non-numeric data.")
+        return df
+    
+    # Handle NaN values
+    if df["Close"].isna().any():
+        st.warning("NaN values found in Close column. Dropping NaNs.")
+        df = df.dropna(subset=["Close"])
+        if df.empty:
+            st.error("No valid data after dropping NaNs.")
+            return df
+    
+    # Compute indicators
+    try:
+        macd = MACD(df["Close"])
+        rsi = RSIIndicator(df["Close"], window=rsi_period)
 
-    df["MACD"] = macd.macd()
-    df["Signal"] = macd.macd_signal()
-    df["RSI"] = rsi.rsi()
+        df["MACD"] = macd.macd()
+        df["Signal"] = macd.macd_signal()
+        df["RSI"] = rsi.rsi()
 
-    df["Buy_Signal"] = (df["MACD"] > df["Signal"]) & (df["RSI"] < 30)
-    df["Sell_Signal"] = (df["MACD"] < df["Signal"]) & (df["RSI"] > 70)
+        df["Buy_Signal"] = (df["MACD"] > df["Signal"]) & (df["RSI"] < 30)
+        df["Sell_Signal"] = (df["MACD"] < df["Signal"]) & (df["RSI"] > 70)
+    except Exception as e:
+        st.error(f"Error computing indicators: {str(e)}")
+        return df
+    
     return df
 
 def get_stock_data(symbol, period="1d", interval="5m"):
@@ -44,6 +67,9 @@ def get_stock_data(symbol, period="1d", interval="5m"):
     elif 'Datetime' not in df.columns:
         st.error("Datetime column not found in data.")
         return pd.DataFrame()
+    # Log column info for debugging
+    st.write(f"Columns: {list(df.columns)}")
+    st.write(f"Close column dtype: {df['Close'].dtype}")
     return df
 
 st.set_page_config(page_title="Stock Signal Dashboard", layout="wide")
